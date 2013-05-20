@@ -22,8 +22,8 @@ class AsosRobot(Task):
 		firefoxProfile.set_preference('permissions.default.stylesheet', 2)
 		firefoxProfile.set_preference('permissions.default.image', 2)
 		firefoxProfile.set_preference('dom.ipc.plugins.enabled.libflashplayer.so', 'false')
-		#b = webdriver.Firefox(firefoxProfile)
-		b = webdriver.Firefox()
+		b = webdriver.Firefox(firefoxProfile)
+		#b = webdriver.Firefox()
 		
 		
 		try:
