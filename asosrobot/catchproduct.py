@@ -16,9 +16,14 @@ from urlparse import urlparse
 import os.path
 
 
-class URLNotValidException(Exception):
-	pass
+class URLNotValidException(Exception): pass
+class OutOfStockException(Exception): pass
+class NoColorException(Exception): pass
+class NoSizeException(Exception): pass
+class SizeNotAvailableException(Exception): pass
+from abstract import LoginFailedException
 
+class UnknownException(Exception): pass
 
 class AsosCatchProductJob(AsosRobot):
 	def __init__(self, arguments):
@@ -29,60 +34,82 @@ class AsosCatchProductJob(AsosRobot):
 		self._color_name = arguments[ "color_name" ]
 		self._progress = (0, "Not finished")
 		
-	
-	def open_product_link(self, webdriver, url):
-		pr = urlparse(url)
-		if not all([pr.scheme=="http" or pr.scheme=="https", pr.netloc=="www.asos.com", os.path.basename(pr.path)=="pgeproduct.aspx"]):
-			raise URLNotValidException()
-		webdriver.get( url )
+
+	def progress(self):
+		return self._progress
 	
 	def answer( self, result, message ):
 		self._progress = (100, {"result": result, "message": message})
 		
 	def selenium_script(self, b):
+		try:
+			self.catch_item(b)
+		except:
+			raise
+	
+	def catch_item(self, b):
 		self._progress = (1, "Started")
 		
 		self.open_product_link(b, self._pagelink)
+		self.ignore_popup(b)
 		
+		self._progress = (20, "Loaded Page")
+
+		self.select_color( b, self._color_name )
+		self.select_size( b, self._size_name )
+		self.put_in_bag(b)
+		self.login(b)
+		
+		self.answer("SUCCESS", "")
+
+
+	def open_product_link(self, webdriver, url):
+		pr = urlparse(url)
+		if not all([pr.scheme=="http" or pr.scheme=="https", pr.netloc=="www.asos.com", os.path.basename(pr.path)=="pgeproduct.aspx"]):
+			raise URLNotValidException()
+		webdriver.get( url )
+
+		
+	def ignore_popup(self, b):
 		try:
 			b.find_element_by_xpath("""//div[@class="popup"]//a[@class="lightbox-close close"]""").click()
 		except:
 			print "WARNING ", self._pagelink, """NOT FOUND: //div[@class="popup"]//a[@class="lightbox-close close"]"""
-		
-		self._progress = (20, "Loaded Page")
-		
+
+
+	def select_color(self, b, color_name):
 		try:
 			colorElement = Select(b.find_element_by_id("ctl00_ContentMainPage_ctlSeparateProduct_drpdwnColour"))
-			colorElement.select_by_visible_text(self._color_name)
-			
+		except NoSuchElementException:
+			raise OutOfStockException()
+		try:
+			colorElement.select_by_visible_text(color_name)
+		except NoSuchElementException:
+			raise NoColorException()
+
+	def select_size(self, b, size_name):
+		try:
 			sizeElement = Select(b.find_element_by_id("ctl00_ContentMainPage_ctlSeparateProduct_drpdwnSize"))
+		except NoSuchElementException:
+			raise OutOfStockException()
+		try:
 			sizeElement.select_by_visible_text(self._size_name)
-			
-			#ignore alert
-			try: 
-				alert_popup = b.switch_to_alert()
-				alert_popup.accept()
-			except WebDriverException:
-				pass
-			
-			item_available = sizeElement.first_selected_option.text == self._size_name and colorElement.first_selected_option.text == self._color_name
+		except NoSuchElementException:
+			raise NoSizeException()
 
-		except NoSuchElementException, ex:
-			raise
-			item_available = False
-		
-		if item_available:
-			bag_button = b.find_element_by_id( "ctl00_ContentMainPage_ctlSeparateProduct_btnAddToBasket" )
-			bag_button.click()
-			time.sleep(2)
+		#ignore alert
+		try: 
+			alert_popup = b.switch_to_alert()
+			alert_popup.accept()
+			raise SizeNotAvailableException()
+		except WebDriverException:
+			pass
 			
-			self.login(b)
-			self._progress = (100, {"result": "SUCCESS"})
-		else:
-			self._progress = (100, {"result": "FAIL"})
 
-	def progress(self):
-		return self._progress
+	def put_in_bag(self, b):
+		bag_button = b.find_element_by_id( "ctl00_ContentMainPage_ctlSeparateProduct_btnAddToBasket" )
+		bag_button.click()
+
 		
 if __name__ == "__main__":
 
@@ -100,13 +127,14 @@ if __name__ == "__main__":
 	    {
 		"login": "mail@mikefilonov.ru",
 		"password":"appleroid55",
-		"color_name":"Print",
+		"color_name":"Black",
 		"size_name": "UK 6",
 		"pagelink": "http://www.asos.com/pgeproduct.aspx?iid=2798867&abi=1&clr=print&xr=1&xmk=na&xr=3&xr=1&mk=na&r=3"
 		})
 
 
-	# match
+	
+	"""# match
 	p = AsosCatchProductJob( 
 	    {
 		"login": "mail@mikefilonov.ru",
@@ -114,7 +142,7 @@ if __name__ == "__main__":
 		"color_name":"Black",
 		"size_name": "UK 12",
 		"pagelink": "http://www.asos.com/Urban-Code/Urban-Code-Crop-Leather-Jacket/Prod/pgeproduct.aspx?iid=2475416&cid=10307&sh=0&pge=0&pgesize=-1&sort=3&clr=Vanilla"
-		})
+		})"""
 	"""
 	#out of stock
 	p = AsosCatchProductJob( 
@@ -124,8 +152,8 @@ if __name__ == "__main__":
 		"color_name":"Denim",
 		"size_name": "UK 8",
 		"pagelink": "http://www.asos.com/pgeproduct.aspx?iid=2323803"
-		})"""
-
+		})
+	"""
 
 	"""#bad url
 	p = AsosCatchProductJob( 
@@ -149,7 +177,17 @@ if __name__ == "__main__":
 		})
 	"""
 	
-		
+	#Size not available
+	p = AsosCatchProductJob( 
+	    {
+		"login": "mail@mikefilonov.ru",
+		"password":"appleroid55",
+		"color_name":"Vanilla",
+		"size_name": "UK 4",
+		"pagelink": "http://www.asos.com/Urban-Code/Urban-Code-Crop-Leather-Jacket/Prod/pgeproduct.aspx?iid=2475416&cid=10307&sh=0&pge=0&pgesize=-1&sort=3&clr=Vanilla"
+		})
+	
+	
 	
 	p.execute()
 	print p.progress()

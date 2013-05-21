@@ -6,6 +6,9 @@ import json
 from selenium.webdriver.support.ui import Select
 from selenium.webdriver.firefox.firefox_profile import FirefoxProfile
 
+class LoginFailedException(Exception): pass
+
+
 class AsosRobot(Task):
 	"""Abstract class and example of implementation
 	
