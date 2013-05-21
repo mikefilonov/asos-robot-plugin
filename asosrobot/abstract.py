@@ -42,3 +42,5 @@ class AsosRobot(Task):
 		b.find_element_by_id("_ctl0_ContentBody_txtEmail").send_keys( self._login )
 		b.find_element_by_id("_ctl0_ContentBody_txtPassword").send_keys( self._password )
 		b.find_element_by_id("_ctl0_ContentBody_btnLogin").click()
+		if b.current_url == "https://www.asos.com/":
+			raise LoginFailedException()

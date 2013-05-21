@@ -38,15 +38,15 @@ class AsosCatchProductJob(AsosRobot):
 	def progress(self):
 		return self._progress
 	
-	def answer( self, result, message ):
-		self._progress = (100, {"result": result, "message": message})
+	def answer( self, result, error_type="", message="" ):
+		self._progress = (100, {"result": result, "error_type": error_type, "message": message})
 		
 	def selenium_script(self, b):
 		try:
 			self.catch_item(b)
-		except:
-			raise
-	
+		except Exception, ex:
+			self.answer("FAIL", ex.__class__.__name__, ex.message)
+
 	def catch_item(self, b):
 		self._progress = (1, "Started")
 		
@@ -60,7 +60,7 @@ class AsosCatchProductJob(AsosRobot):
 		self.put_in_bag(b)
 		self.login(b)
 		
-		self.answer("SUCCESS", "")
+		self.answer("SUCCESS")
 
 
 	def open_product_link(self, webdriver, url):
@@ -85,7 +85,8 @@ class AsosCatchProductJob(AsosRobot):
 		try:
 			colorElement.select_by_visible_text(color_name)
 		except NoSuchElementException:
-			raise NoColorException()
+			colors = [o.text for o in colorElement.options  if o.get_attribute("value") != "-1"]
+			raise NoColorException(colors)
 
 	def select_size(self, b, size_name):
 		try:
@@ -95,7 +96,8 @@ class AsosCatchProductJob(AsosRobot):
 		try:
 			sizeElement.select_by_visible_text(self._size_name)
 		except NoSuchElementException:
-			raise NoSizeException()
+			size = [o.text for o in sizeElement.options if o.get_attribute("value") != "-1"]
+			raise NoSizeException(size)
 
 		#ignore alert
 		try: 
@@ -109,25 +111,33 @@ class AsosCatchProductJob(AsosRobot):
 	def put_in_bag(self, b):
 		bag_button = b.find_element_by_id( "ctl00_ContentMainPage_ctlSeparateProduct_btnAddToBasket" )
 		bag_button.click()
+		
+		mini_bag = b.find_element_by_id ("miniBasketAdded")
+		countdown = 30
+		while not mini_bag.is_displayed():
+			countdown -= 1
+			if countdown <=0:
+				raise UnknownException( "Can't put item to bag" )
+			time.sleep(0.1)
 
 		
 if __name__ == "__main__":
 
-	"""p = AsosCatchProductJob( 
-	    {
+	"""
+	p = AsosCatchProductJob({
 		"login": "mail@mikefilonov.ru",
 		"password":"appleroid55",
 		"color":"Dark camel",
 		"size":"2107",
 		"pagelink": "http://www.asos.com/Ash/Ash-Sioux-Fringed-Wedge-Boots/Prod/pgeproduct.aspx?iid=2370292&SearchQuery=ash&sh=0&pge=0&pgesize=-1&sort=3&clr=Black",
-		})"""
+		})
+	"""
 	
 	#one color
-	p = AsosCatchProductJob( 
-	    {
+	p = AsosCatchProductJob(  {
 		"login": "mail@mikefilonov.ru",
 		"password":"appleroid55",
-		"color_name":"Black",
+		"color_name":"Print",
 		"size_name": "UK 6",
 		"pagelink": "http://www.asos.com/pgeproduct.aspx?iid=2798867&abi=1&clr=print&xr=1&xmk=na&xr=3&xr=1&mk=na&r=3"
 		})
@@ -165,8 +175,8 @@ if __name__ == "__main__":
 		"pagelink": "http://yandex.ru/pgeproduct.aspx?iid=2323803"
 		})"""
 
-
-	"""#bad url
+	"""
+	#bad url
 	p = AsosCatchProductJob( 
 	    {
 		"login": "mail@mikefilonov.ru",
@@ -176,7 +186,7 @@ if __name__ == "__main__":
 		"pagelink": "http://www.asos.com/Fashion-Online-16/Cat/pgecategory.aspx?cid=13516&WT.ac=Women|HotPieces|Gladiators"
 		})
 	"""
-	
+	"""
 	#Size not available
 	p = AsosCatchProductJob( 
 	    {
@@ -186,7 +196,7 @@ if __name__ == "__main__":
 		"size_name": "UK 4",
 		"pagelink": "http://www.asos.com/Urban-Code/Urban-Code-Crop-Leather-Jacket/Prod/pgeproduct.aspx?iid=2475416&cid=10307&sh=0&pge=0&pgesize=-1&sort=3&clr=Vanilla"
 		})
-	
+	"""
 	
 	
 	p.execute()
