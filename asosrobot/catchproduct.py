@@ -2,28 +2,18 @@ if __name__ == "__main__":
 	import sys
 	sys.path.append("/usr/local/var/taskserver/")
 
-from task import Task
-from selenium import webdriver
 import time
 import json
-from selenium.webdriver.support.ui import Select
 
+
+from selenium import webdriver
+from selenium.webdriver.support.ui import Select
 from selenium.common.exceptions import NoAlertPresentException, NoSuchElementException, WebDriverException
 
+
+from asosexceptions import *
 from abstract import AsosRobot
 
-from urlparse import urlparse
-import os.path
-
-
-class URLNotValidException(Exception): pass
-class OutOfStockException(Exception): pass
-class NoColorException(Exception): pass
-class NoSizeException(Exception): pass
-class SizeNotAvailableException(Exception): pass
-from abstract import LoginFailedException
-
-class UnknownException(Exception): pass
 
 class AsosCatchProductJob(AsosRobot):
 	def __init__(self, arguments):
@@ -32,22 +22,9 @@ class AsosCatchProductJob(AsosRobot):
 		self._pagelink = arguments["pagelink"]
 		self._size_name = arguments[ "size_name" ]
 		self._color_name = arguments[ "color_name" ]
-		self._progress = (0, "Not finished")
-		
-
-	def progress(self):
-		return self._progress
-	
-	def answer( self, result, error_type="", message="" ):
-		self._progress = (100, {"result": result, "error_type": error_type, "message": message})
+		self._progress = (0, "Not Started")
 		
 	def selenium_script(self, b):
-		try:
-			self.catch_item(b)
-		except Exception, ex:
-			self.answer("FAIL", ex.__class__.__name__, ex.message)
-
-	def catch_item(self, b):
 		self._progress = (1, "Started")
 		
 		self.open_product_link(b, self._pagelink)
@@ -58,18 +35,12 @@ class AsosCatchProductJob(AsosRobot):
 		self.select_color( b, self._color_name )
 		self.select_size( b, self._size_name )
 		self.put_in_bag(b)
+
+		self._progress = (40, "Product fetched")
 		self.login(b)
 		
 		self.answer("SUCCESS")
 
-
-	def open_product_link(self, webdriver, url):
-		pr = urlparse(url)
-		if not all([pr.scheme=="http" or pr.scheme=="https", pr.netloc=="www.asos.com", os.path.basename(pr.path)=="pgeproduct.aspx"]):
-			raise URLNotValidException()
-		webdriver.get( url )
-
-		
 	def ignore_popup(self, b):
 		try:
 			b.find_element_by_xpath("""//div[@class="popup"]//a[@class="lightbox-close close"]""").click()

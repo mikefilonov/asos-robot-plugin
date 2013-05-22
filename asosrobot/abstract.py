@@ -1,13 +1,14 @@
-from task import Task
-from selenium import webdriver
-import time
-import json
+import time, json, os.path
+from urlparse import urlparse
 
+
+from selenium import webdriver
 from selenium.webdriver.support.ui import Select
 from selenium.webdriver.firefox.firefox_profile import FirefoxProfile
+from selenium.common.exceptions import NoAlertPresentException, NoSuchElementException, WebDriverException
 
-class LoginFailedException(Exception): pass
-
+from asosexceptions import *
+from task import Task
 
 class AsosRobot(Task):
 	"""Abstract class and example of implementation
@@ -18,8 +19,14 @@ class AsosRobot(Task):
 	def __init__(self, arguments):
 		self._login = arguments["login"]
 		self._password = arguments["password"]
-		pass
+		self._progress = (0, "Not finished")
 		
+	def progress(self):
+		return self._progress
+	
+	def answer( self, result, error_type="", message="" ):
+		self._progress = (100, {"result": result, "error_type": error_type, "message": message})
+	
 	def execute(self):
 		firefoxProfile = FirefoxProfile()
 		firefoxProfile.set_preference('permissions.default.stylesheet', 2)
@@ -28,14 +35,19 @@ class AsosRobot(Task):
 		b = webdriver.Firefox(firefoxProfile)
 		#b = webdriver.Firefox()
 		
-		
 		try:
 			self.selenium_script(b)
+		
+		except Exception, ex:
+			self.answer("FAIL", ex.__class__.__name__, ex.message)
+		
 		finally:
 			b.quit()
+
 		
 	def selenium_script(self, b):
 		self.login(b)
+		self.answer( "SUCCESS" )
 		
 	def login(self, b):
 		b.get( "https://www.asos.com" )
@@ -44,3 +56,9 @@ class AsosRobot(Task):
 		b.find_element_by_id("_ctl0_ContentBody_btnLogin").click()
 		if b.current_url == "https://www.asos.com/":
 			raise LoginFailedException()
+
+	def open_product_link(self, b, url):
+		pr = urlparse(url)
+		if not all([pr.scheme=="http" or pr.scheme=="https", pr.netloc=="www.asos.com", os.path.basename(pr.path)=="pgeproduct.aspx"]):
+			raise URLNotValidException()
+		b.get( url )

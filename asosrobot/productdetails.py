@@ -2,42 +2,73 @@ if __name__ == "__main__":
 	import sys
 	sys.path.append("/usr/local/var/taskserver/")
 
-from task import Task
 from selenium import webdriver
-import time
-import json
 from selenium.webdriver.support.ui import Select
+from selenium.common.exceptions import NoAlertPresentException, NoSuchElementException, WebDriverException
 
+from asosexceptions import *
 from abstract import AsosRobot
 
 class AsosProductDetailsJob(AsosRobot):
 	def __init__(self, arguments):
 		self.pagelink = arguments["pagelink"]
-		self._progress = (0, "Not finished")
+		self._progress = (0, "Not Started")
 		
 	def selenium_script(self, b):
 		self._progress = (1, "Started")
 		
-		b.get( self.pagelink )
+		self.open_product_link(b, self.pagelink)
+		
 		titleElement = b.find_element_by_id("ctl00_ContentMainPage_ctlSeparateProduct_lblProductTitle")
-		colorElement = Select(b.find_element_by_id( "ctl00_ContentMainPage_ctlSeparateProduct_drpdwnColour" ))
-		colors = [(o.get_attribute("value"),o.text) for o in colorElement.options]
+		
+		try:
+			colorElement = Select(b.find_element_by_id( "ctl00_ContentMainPage_ctlSeparateProduct_drpdwnColour" ))
+			
+		except NoSuchElementException:
+			self.answer( "SUCCESS", "OutOfStockException", {"description": titleElement.text, "colors": [], "sizes": []} )
+			return 0
+		
+		colors = [o.text for o in colorElement.options if o.get_attribute("value") !="-1"]
 		sizes = []
 		for color in colorElement.options:
 			colorElement.select_by_visible_text( color.text )
 			sizeElement = Select(b.find_element_by_id( "ctl00_ContentMainPage_ctlSeparateProduct_drpdwnSize" ))
-			sizes += [(o.get_attribute("value"),o.text) for o in sizeElement.options]
+			sizes += [o.text for o in sizeElement.options if o.get_attribute("value") !="-1"]
 		
-		result = {"description": titleElement.text, "colors": dict(colors), "sizes": dict(sizes)}
+		self.answer( "SUCCESS", "", {"description": titleElement.text, "colors": colors, "sizes": sizes} )
 		
-		self._progress = (100, json.dumps(result))
+		
+		
 
-	def progress(self):
-		return self._progress
-		
 if __name__ == "__main__":
-	p = AsosProductDetailsJob( {"pagelink": "http://www.asos.com/Ash/Ash-Sioux-Fringed-Wedge-Boots/Prod/pgeproduct.aspx?iid=2370292&SearchQuery=ash&sh=0&pge=0&pgesize=-1&sort=3&clr=Black"})
-	#p = AsosProductDetailsJob( {"pagelink": "http://www.asos.com/Goldie/Goldie-Floral-Tunic-Dress/Prod/pgeproduct.aspx?iid=2652191&SearchQuery=turquose&sh=0&pge=0&pgesize=-1&sort=3&clr=Turquoise"})
 	
-	p.execute()
-	print p.progress()
+	import unittest
+	
+	class AsosProductDetailsJobUnitTest(unittest.TestCase):
+		def test_success(self):
+			link = "http://www.asos.com/Ash/Ash-Sioux-Fringed-Wedge-Boots/Prod/pgeproduct.aspx?iid=2370292&SearchQuery=ash&sh=0&pge=0&pgesize=-1&sort=3&clr=Black"
+			p = AsosProductDetailsJob({"pagelink": link})
+			p.execute()
+			notused, answer = p.progress()
+			print p.progress()
+			self.assertEqual( answer["result"], "SUCCESS" )
+			
+		def test_bad_link(self):
+			link = """http://www.asos.com/Women/Sale/New-In-Clothing/Cat/pgecategory.aspx?cid=5524"""
+			p = AsosProductDetailsJob({"pagelink": link})
+			p.execute()
+			notused, answer = p.progress()
+			print p.progress()
+			self.assertEqual( answer["result"], "FAIL" )
+			self.assertEqual( answer["error_type"], "URLNotValidException" )
+			
+		def test_out_of_stock(self):
+			link = """http://www.asos.com/pgeproduct.aspx?iid=2478339"""
+			p = AsosProductDetailsJob({"pagelink": link})
+			p.execute()
+			notused, answer = p.progress()
+			print p.progress()
+			self.assertEqual( answer["result"], "SUCCESS" )
+			self.assertEqual( answer["error_type"], "OutOfStockException" )
+		
+	unittest.main(verbosity=2)
