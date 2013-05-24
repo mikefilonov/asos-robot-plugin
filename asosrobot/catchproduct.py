@@ -84,11 +84,11 @@ class AsosCatchProductJob(AsosRobot):
 		bag_button.click()
 		
 		mini_bag = b.find_element_by_id ("miniBasketAdded")
-		countdown = 30
+		countdown = 10
 		while not mini_bag.is_displayed():
-			countdown -= 1
 			if countdown <=0:
-				raise UnknownException( "Can't put item to bag" )
+				raise BagNotWorkingException( "Can't put item to bag" )
+			countdown -= 0.1
 			time.sleep(0.1)
 
 		
