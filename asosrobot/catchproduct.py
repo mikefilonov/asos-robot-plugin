@@ -31,9 +31,18 @@ class AsosCatchProductJob(AsosRobot):
 		self.ignore_popup(b)
 		
 		self._progress = (20, "Loaded Page")
-
-		self.select_color( b, self._color_name )
-		self.select_size( b, self._size_name )
+		
+		if self._color_name == "*":
+			for c in self.available_colors(b):
+				self.select_color(b, c)
+				try:
+					self.select_size(b, self._size_name)
+					break;
+				except SizeNotAvailableException, NoSizeException:
+					print "- ", c
+		else:
+			self.select_color( b, self._color_name )
+			self.select_size( b, self._size_name )
 		self.put_in_bag(b)
 
 		self._progress = (40, "Product fetched")
@@ -46,7 +55,14 @@ class AsosCatchProductJob(AsosRobot):
 			b.find_element_by_xpath("""//div[@class="popup"]//a[@class="lightbox-close close"]""").click()
 		except:
 			print "WARNING ", self._pagelink, """NOT FOUND: //div[@class="popup"]//a[@class="lightbox-close close"]"""
+	
+	def available_colors(self, b):
+		colorElement = Select(b.find_element_by_id("ctl00_ContentMainPage_ctlSeparateProduct_drpdwnColour"))
+		return [o.text for o in colorElement.options if o.get_attribute("value") != "-1"]
 
+	def available_sizes(self, b):
+		sizeElement = Select(b.find_element_by_id("ctl00_ContentMainPage_ctlSeparateProduct_drpdwnSize"))
+		return [o.text for o in sizeElement.options if o.get_attribute("value") != "-1"]
 
 	def select_color(self, b, color_name):
 		try:
@@ -56,7 +72,7 @@ class AsosCatchProductJob(AsosRobot):
 		try:
 			colorElement.select_by_visible_text(color_name)
 		except NoSuchElementException:
-			colors = [o.text for o in colorElement.options  if o.get_attribute("value") != "-1"]
+			colors = self.availabe_colors(b)
 			raise NoColorException(colors)
 
 	def select_size(self, b, size_name):
@@ -65,18 +81,26 @@ class AsosCatchProductJob(AsosRobot):
 		except NoSuchElementException:
 			raise OutOfStockException()
 		try:
-			sizeElement.select_by_visible_text(self._size_name)
+			if size_name == "*":
+				for size in self.available_sizes(b):
+					sizeElement.select_by_visible_text(size)
+					if not self.size_not_available_alert(b): break
+				else:
+					raise SizeNotAvailableException()
+			else:
+				sizeElement.select_by_visible_text(size_name)
+				if self.size_not_available_alert(b): raise SizeNotAvailableException()
 		except NoSuchElementException:
-			size = [o.text for o in sizeElement.options if o.get_attribute("value") != "-1"]
-			raise NoSizeException(size)
+			raise NoSizeException( self.available_sizes() )
 
-		#ignore alert
+
+	def size_not_available_alert(self, b):
 		try: 
 			alert_popup = b.switch_to_alert()
 			alert_popup.accept()
-			raise SizeNotAvailableException()
+			return True
 		except WebDriverException:
-			pass
+			return False
 			
 
 	def put_in_bag(self, b):
@@ -104,6 +128,7 @@ if __name__ == "__main__":
 		})
 	"""
 	
+	"""
 	#one color
 	p = AsosCatchProductJob(  {
 		"login": "mail@mikefilonov.ru",
@@ -112,18 +137,19 @@ if __name__ == "__main__":
 		"size_name": "UK 6",
 		"pagelink": "http://www.asos.com/pgeproduct.aspx?iid=2798867&abi=1&clr=print&xr=1&xmk=na&xr=3&xr=1&mk=na&r=3"
 		})
-
+	"""
 
 	
-	"""# match
+	# match
 	p = AsosCatchProductJob( 
 	    {
 		"login": "mail@mikefilonov.ru",
 		"password":"appleroid55",
-		"color_name":"Black",
-		"size_name": "UK 12",
+		"color_name":"*",
+		"size_name": "*",
 		"pagelink": "http://www.asos.com/Urban-Code/Urban-Code-Crop-Leather-Jacket/Prod/pgeproduct.aspx?iid=2475416&cid=10307&sh=0&pge=0&pgesize=-1&sort=3&clr=Vanilla"
-		})"""
+		})
+	
 	"""
 	#out of stock
 	p = AsosCatchProductJob( 
@@ -157,17 +183,17 @@ if __name__ == "__main__":
 		"pagelink": "http://www.asos.com/Fashion-Online-16/Cat/pgecategory.aspx?cid=13516&WT.ac=Women|HotPieces|Gladiators"
 		})
 	"""
-	"""
+	
 	#Size not available
 	p = AsosCatchProductJob( 
 	    {
 		"login": "mail@mikefilonov.ru",
 		"password":"appleroid55",
 		"color_name":"Vanilla",
-		"size_name": "UK 4",
+		"size_name": "UK 10",
 		"pagelink": "http://www.asos.com/Urban-Code/Urban-Code-Crop-Leather-Jacket/Prod/pgeproduct.aspx?iid=2475416&cid=10307&sh=0&pge=0&pgesize=-1&sort=3&clr=Vanilla"
 		})
-	"""
+	
 	
 	
 	p.execute()
