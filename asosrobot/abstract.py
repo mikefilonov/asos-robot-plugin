@@ -1,3 +1,7 @@
+if __name__ == "__main__":
+	import sys
+	sys.path.append("/usr/local/var/taskserver/")
+
 import time, json, os.path
 from urlparse import urlparse
 
@@ -46,13 +50,34 @@ class AsosRobot(Task):
 
 		
 	def selenium_script(self, b):
+		b.get( "http://www.asos.com/pgeproduct.aspx?iid=2370304" )
 		self.login(b)
 		self.answer( "SUCCESS" )
 		
 	def login(self, b):
 		b.get( "https://www.asos.com" )
-		b.find_element_by_id("_ctl0_ContentBody_txtEmail").send_keys( self._login )
-		b.find_element_by_id("_ctl0_ContentBody_txtPassword").send_keys( self._password )
+		
+		
+		attempt=0
+		while True:
+			try:
+				b.find_element_by_id("_ctl0_ContentBody_txtEmail")
+				break
+			except NoSuchElementException:
+				attempt+=1
+				time.sleep(0.1)
+				if attempt > 20:
+					raise
+			
+		attempt=0
+		while b.find_element_by_id("_ctl0_ContentBody_txtEmail").get_attribute( "value" ) != self._login and attempt < 20:
+			b.find_element_by_id("_ctl0_ContentBody_txtEmail").clear()
+			b.find_element_by_id("_ctl0_ContentBody_txtEmail").send_keys( self._login )
+			b.find_element_by_id("_ctl0_ContentBody_txtPassword").clear()
+			b.find_element_by_id("_ctl0_ContentBody_txtPassword").send_keys( self._password )
+			attempt+=1
+			time.sleep(0.1)
+			
 		b.find_element_by_id("_ctl0_ContentBody_btnLogin").click()
 		if b.current_url == "https://www.asos.com/":
 			raise LoginFailedException()
@@ -62,3 +87,23 @@ class AsosRobot(Task):
 		if not all([pr.scheme=="http" or pr.scheme=="https", pr.netloc=="www.asos.com", os.path.basename(pr.path)=="pgeproduct.aspx"]):
 			raise URLNotValidException()
 		b.get( url )
+
+if __name__ == "__main__":
+	p = AsosRobot({"login": "mail@mikefilonov.ru", "password": "appleroid55"})
+	p.execute()
+	print p.progress()
+	p.execute()
+	print p.progress()
+	p.execute()
+	print p.progress()
+	p.execute()
+	print p.progress()
+	p.execute()
+	print p.progress()
+	p.execute()
+	print p.progress()
+	p.execute()
+	print p.progress()
+	p.execute()
+	print p.progress()
+

@@ -72,7 +72,7 @@ class AsosCatchProductJob(AsosRobot):
 		try:
 			colorElement.select_by_visible_text(color_name)
 		except NoSuchElementException:
-			colors = self.availabe_colors(b)
+			colors = self.available_colors(b)
 			raise NoColorException(colors)
 
 	def select_size(self, b, size_name):
@@ -102,7 +102,7 @@ class AsosCatchProductJob(AsosRobot):
 		except WebDriverException:
 			return False
 			
-
+			
 	def put_in_bag(self, b):
 		bag_button = b.find_element_by_id( "ctl00_ContentMainPage_ctlSeparateProduct_btnAddToBasket" )
 		bag_button.click()
@@ -193,6 +193,19 @@ if __name__ == "__main__":
 		"size_name": "UK 10",
 		"pagelink": "http://www.asos.com/Urban-Code/Urban-Code-Crop-Leather-Jacket/Prod/pgeproduct.aspx?iid=2475416&cid=10307&sh=0&pge=0&pgesize=-1&sort=3&clr=Vanilla"
 		})
+	
+
+
+	p = AsosCatchProductJob( 
+	    {
+		"login": "mail@mikefilonov.ru",
+		"password":"appleroid55",
+		"color_name":"*",
+		"size_name": "*",
+		"pagelink": "http://www.asos.com/pgeproduct.aspx?iid=2370304" 
+		})
+
+	
 	
 	
 	
