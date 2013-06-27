@@ -87,11 +87,21 @@ class AsosRobot(Task):
 		if b.current_url == "https://www.asos.com/":
 			raise LoginFailedException()
 
+	def ignore_alert(self, b):
+		try: 
+			alert_popup = b.switch_to_alert()
+			alert_popup.accept()
+			return True
+		except WebDriverException:
+			return False
+
+
 	def open_product_link(self, b, url):
 		pr = urlparse(url)
 		if not all([pr.scheme=="http" or pr.scheme=="https", pr.netloc=="www.asos.com", os.path.basename(pr.path)=="pgeproduct.aspx"]):
 			raise URLNotValidException()
 		b.get( url )
+		self.ignore_alert(b)
 
 if __name__ == "__main__":
 	p = AsosRobot({"login": "mail@mikefilonov.ru", "password": "appleroid55"})

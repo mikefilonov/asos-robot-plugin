@@ -42,6 +42,7 @@ class AsosCatchProductJob(AsosRobot):
 					break;
 				except SizeNotAvailableException, NoSizeException:
 					print "SizeNotAvailable or NoSize for: ", c
+				raise SizeNotAvailableException()
 		else:
 			self.select_color( b, self._color_name )
 			self.select_size( b, self._size_name )
@@ -88,6 +89,23 @@ class AsosCatchProductJob(AsosRobot):
 			colors = self.available_colors(b)
 			raise NoColorException(colors)
 
+
+	def distance(self, s1, s2):
+		def f(a,b):
+			return 1 if a==b else 0
+		l = min( len(s1), len(s2) )
+		return sum( map( lambda a,b: int(a==b),s1[:l],s2[:l]) ) 
+
+	def get_close_matches(self, candidate, available):
+		r = difflib.get_close_matches(candidate, [a[:len(candidate)] for a in available])
+		if r:
+			best = r[0]
+			for a in available:
+				if a.startswith(best):
+					return a
+		return candidate
+
+
 	def select_size(self, b, size_name):
 		sizeElement = self.size_element(b)
 		
@@ -99,8 +117,7 @@ class AsosCatchProductJob(AsosRobot):
 				else:
 					raise SizeNotAvailableException()
 			else:
-				best_size_array = difflib.get_close_matches( size_name, self.available_sizes(b))
-				best_size = best_size_array[0] if best_size_array else size_name
+				best_size = self.get_close_matches( size_name, self.available_sizes(b))
 				print size_name, best_size
 				print 'options: ', sizeElement.first_selected_option.get_attribute("value")
 				sizeElement.select_by_visible_text(best_size)
