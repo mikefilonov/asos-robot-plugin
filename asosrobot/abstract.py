@@ -1,3 +1,6 @@
+import sys, traceback
+
+
 if __name__ == "__main__":
 	import sys
 	sys.path.append("/usr/local/var/taskserver/")
@@ -41,8 +44,10 @@ class AsosRobot(Task):
 		
 		try:
 			self.selenium_script(b)
-		
+			
 		except Exception, ex:
+			exc_type, exc_value, exc_traceback = sys.exc_info()
+			traceback.print_exception( exc_type, exc_value, exc_traceback, limit=2, file=sys.stderr)
 			self.answer("FAIL", ex.__class__.__name__, ex.message)
 		
 		finally:

@@ -5,6 +5,8 @@ if __name__ == "__main__":
 import time
 import json
 
+import difflib
+
 
 from selenium import webdriver
 from selenium.webdriver.support.ui import Select
@@ -39,7 +41,7 @@ class AsosCatchProductJob(AsosRobot):
 					self.select_size(b, self._size_name)
 					break;
 				except SizeNotAvailableException, NoSizeException:
-					print "- ", c
+					print "SizeNotAvailable or NoSize for: ", c
 		else:
 			self.select_color( b, self._color_name )
 			self.select_size( b, self._size_name )
@@ -56,30 +58,39 @@ class AsosCatchProductJob(AsosRobot):
 		except:
 			print "WARNING ", self._pagelink, """NOT FOUND: //div[@class="popup"]//a[@class="lightbox-close close"]"""
 	
+	
+	def color_element(self,b):
+		try:
+			return Select(b.find_element_by_id("ctl00_ContentMainPage_ctlSeparateProduct_drpdwnColour"))
+		except NoSuchElementException:
+			raise OutOfStockException()
+
+	def size_element(self,b):
+		try:
+			return Select(b.find_element_by_id("ctl00_ContentMainPage_ctlSeparateProduct_drpdwnSize"))
+		except NoSuchElementException:
+			raise OutOfStockException()
+
+	
+	
 	def available_colors(self, b):
-		colorElement = Select(b.find_element_by_id("ctl00_ContentMainPage_ctlSeparateProduct_drpdwnColour"))
+		colorElement = self.color_element(b)
 		return [o.text for o in colorElement.options if o.get_attribute("value") != "-1"]
 
 	def available_sizes(self, b):
-		sizeElement = Select(b.find_element_by_id("ctl00_ContentMainPage_ctlSeparateProduct_drpdwnSize"))
+		sizeElement = self.size_element(b)
 		return [o.text for o in sizeElement.options if o.get_attribute("value") != "-1"]
 
 	def select_color(self, b, color_name):
 		try:
-			colorElement = Select(b.find_element_by_id("ctl00_ContentMainPage_ctlSeparateProduct_drpdwnColour"))
-		except NoSuchElementException:
-			raise OutOfStockException()
-		try:
-			colorElement.select_by_visible_text(color_name)
+			self.color_element(b).select_by_visible_text(color_name)
 		except NoSuchElementException:
 			colors = self.available_colors(b)
 			raise NoColorException(colors)
 
 	def select_size(self, b, size_name):
-		try:
-			sizeElement = Select(b.find_element_by_id("ctl00_ContentMainPage_ctlSeparateProduct_drpdwnSize"))
-		except NoSuchElementException:
-			raise OutOfStockException()
+		sizeElement = self.size_element(b)
+		
 		try:
 			if size_name == "*":
 				for size in self.available_sizes(b):
@@ -88,10 +99,15 @@ class AsosCatchProductJob(AsosRobot):
 				else:
 					raise SizeNotAvailableException()
 			else:
-				sizeElement.select_by_visible_text(size_name)
+				best_size_array = difflib.get_close_matches( size_name, self.available_sizes(b))
+				best_size = best_size_array[0] if best_size_array else size_name
+				print size_name, best_size
+				print 'options: ', sizeElement.first_selected_option.get_attribute("value")
+				sizeElement.select_by_visible_text(best_size)
 				if self.size_not_available_alert(b): raise SizeNotAvailableException()
+				print "ok"
 		except NoSuchElementException:
-			raise NoSizeException( self.available_sizes() )
+			raise NoSizeException( self.available_sizes(b) )
 
 
 	def size_not_available_alert(self, b):
@@ -106,14 +122,15 @@ class AsosCatchProductJob(AsosRobot):
 	def put_in_bag(self, b):
 		bag_button = b.find_element_by_id( "ctl00_ContentMainPage_ctlSeparateProduct_btnAddToBasket" )
 		bag_button.click()
-		
-		mini_bag = b.find_element_by_id ("miniBasketAdded")
+		mini_bag = b.find_element_by_id("miniBasketAdded")
 		countdown = 10
 		while not mini_bag.is_displayed():
+			print "attempt ", countdown
 			if countdown <=0:
 				raise BagNotWorkingException( "Can't put item to bag" )
 			countdown -= 0.1
 			time.sleep(0.1)
+		print "ok"
 
 		
 if __name__ == "__main__":
